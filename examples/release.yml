@@ -1,0 +1,57 @@
+# Drop-in replacement for a manual "bump + prepare notes + commit + tag" job.
+# The repo-specific build/test steps stay; the action owns the release plumbing.
+name: Create Tag/Release
+run-name: ${{ github.actor }} release ${{ inputs.bump }} on ${{ github.repository }}
+
+on:
+  workflow_dispatch:
+    inputs:
+      bump:
+        description: 'Version bump type'
+        required: true
+        default: patch
+        type: choice
+        options:
+          - patch
+          - minor
+          - major
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    name: Bump, tag and release
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          # Use a PAT (not GITHUB_TOKEN) so the pushed tag triggers your publish
+          # workflow (e.g. tag.yml). GITHUB_TOKEN pushes do not trigger workflows.
+          token: ${{ secrets.PAT_TOKEN }}
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+
+      - name: Install, build and smoke test
+        run: |
+          npm ci
+          npm run build
+          npm test
+
+      - name: Release
+        uses: softwarity/release-notes-action@v1
+        with:
+          bump: ${{ inputs.bump }}
+          # All of these are optional — defaults shown:
+          # notes-file: RELEASE_NOTES.md
+          # placeholder: NEXT RELEASE
+          # language: auto            # node (package.json) auto-detected; else generic (.version)
+          # tag-prefix: v
+          # create-release: true
+          # token: ${{ github.token }}  # creates the GitHub Release

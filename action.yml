@@ -1,0 +1,110 @@
+name: 'Release Notes & Version'
+description: >-
+  Bump the version, resolve a "NEXT RELEASE" notes section into the new version,
+  tag, and publish a GitHub Release. Language-aware (Node package.json or a
+  generic .version file).
+author: 'Softwarity'
+branding:
+  icon: 'tag'
+  color: 'purple'
+
+inputs:
+  bump:
+    description: 'Version bump: patch | minor | major'
+    required: true
+    default: 'patch'
+  notes-file:
+    description: 'Path to the release-notes markdown file'
+    required: false
+    default: 'RELEASE_NOTES.md'
+  placeholder:
+    description: 'Heading text of the unreleased section (without the leading "## ")'
+    required: false
+    default: 'NEXT RELEASE'
+  language:
+    description: 'auto | node | generic. auto = node if package.json exists, else generic'
+    required: false
+    default: 'auto'
+  version-file:
+    description: 'Version file for the generic language (defaults to ".version")'
+    required: false
+    default: ''
+  tag-prefix:
+    description: 'Prefix prepended to the version to form the git tag (e.g. "v")'
+    required: false
+    default: 'v'
+  create-release:
+    description: 'Create a GitHub Release from the resolved notes (true/false)'
+    required: false
+    default: 'true'
+  release-draft:
+    description: 'Create the GitHub Release as a draft (true/false)'
+    required: false
+    default: 'false'
+  release-prerelease:
+    description: 'Mark the GitHub Release as a prerelease (true/false)'
+    required: false
+    default: 'false'
+  push:
+    description: 'Push the commits and the tag to the remote (true/false)'
+    required: false
+    default: 'true'
+  commit-user-name:
+    description: 'git user.name for the release commits'
+    required: false
+    default: 'github-actions[bot]'
+  commit-user-email:
+    description: 'git user.email for the release commits'
+    required: false
+    default: 'github-actions[bot]@users.noreply.github.com'
+  token:
+    description: 'Token used to create the GitHub Release (needs contents: write)'
+    required: false
+    default: ${{ github.token }}
+  dry-run:
+    description: 'Compute and edit files but skip commit, tag, push and release (true/false)'
+    required: false
+    default: 'false'
+
+outputs:
+  version:
+    description: 'The new version, without the tag prefix (e.g. 2.0.1)'
+    value: ${{ steps.run.outputs.version }}
+  previous-version:
+    description: 'The version before the bump'
+    value: ${{ steps.run.outputs.previous-version }}
+  tag:
+    description: 'The git tag created, with prefix (e.g. v2.0.1)'
+    value: ${{ steps.run.outputs.tag }}
+  notes:
+    description: 'The extracted release-notes body for this version'
+    value: ${{ steps.run.outputs.notes }}
+  release-url:
+    description: 'URL of the created GitHub Release (empty if not created)'
+    value: ${{ steps.run.outputs.release-url }}
+  notes-file-created:
+    description: 'true if the notes file did not exist and was created by this run'
+    value: ${{ steps.run.outputs.notes-file-created }}
+
+runs:
+  using: 'composite'
+  steps:
+    - id: run
+      shell: bash
+      working-directory: ${{ github.workspace }}
+      env:
+        RNA_BUMP: ${{ inputs.bump }}
+        RNA_NOTES_FILE: ${{ inputs.notes-file }}
+        RNA_PLACEHOLDER: ${{ inputs.placeholder }}
+        RNA_LANGUAGE: ${{ inputs.language }}
+        RNA_VERSION_FILE: ${{ inputs.version-file }}
+        RNA_TAG_PREFIX: ${{ inputs.tag-prefix }}
+        RNA_CREATE_RELEASE: ${{ inputs.create-release }}
+        RNA_RELEASE_DRAFT: ${{ inputs.release-draft }}
+        RNA_RELEASE_PRERELEASE: ${{ inputs.release-prerelease }}
+        RNA_PUSH: ${{ inputs.push }}
+        RNA_COMMIT_USER_NAME: ${{ inputs.commit-user-name }}
+        RNA_COMMIT_USER_EMAIL: ${{ inputs.commit-user-email }}
+        RNA_DRY_RUN: ${{ inputs.dry-run }}
+        GH_TOKEN: ${{ inputs.token }}
+      run: node "$GITHUB_ACTION_PATH/scripts/main.mjs"
