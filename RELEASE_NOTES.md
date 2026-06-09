@@ -2,6 +2,17 @@
 
 ## NEXT RELEASE
 
+### Added
+
+- **`tag` language mode**: for a repo with no manifest, the version is read straight
+  from the **git tags** (highest `vX.Y.Z`, moving pointers like `v1` ignored) instead
+  of a `.version` file — nothing to commit or keep in sync. It's now the `auto` default
+  when there is no `package.json`. Needs `fetch-depth: 0` at checkout.
+
+### Changed
+
+- release-flow now versions **itself** from its tags (dropped its `.version` file).
+
 ---
 
 ## 1.0.1

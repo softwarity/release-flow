@@ -22,7 +22,7 @@ inputs:
     required: false
     default: 'NEXT RELEASE'
   language:
-    description: 'auto | node | generic. auto = node if package.json exists, else generic'
+    description: 'auto | node | tag | generic. auto = node if package.json exists, else tag (version read from git tags, no file)'
     required: false
     default: 'auto'
   version-file:

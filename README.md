@@ -4,7 +4,7 @@ A small, dependency-free composite action that turns a single manual choice
 (`patch` / `minor` / `major`) into a complete release:
 
 1. **Bumps the version** in the right place for your language
-   (`package.json` for Node, a plain `.version` file otherwise).
+   (`package.json` for Node, or **the git tags** otherwise — no file to manage).
 2. **Resolves the release notes**: renames the unreleased
    `## NEXT RELEASE` section to the new version number and extracts its body.
 3. **Commits and tags** that state — so the tag captures the finished notes.
@@ -117,22 +117,24 @@ If the notes file doesn't exist, the action creates it.
 
 ## Versioning convention
 
-The version stored in your manifest is treated as the **last published**
-version; the action bumps from it. For Node this is exactly
-`npm version <bump> --no-git-tag-version` (and it keeps `package-lock.json` in
-sync). For the generic case it's plain `MAJOR.MINOR.PATCH` math on the
-`.version` file (starting from `0.0.0` if the file is absent).
+The **last published** version is the starting point; the action bumps from it.
+For Node that's `npm version <bump> --no-git-tag-version` (which also keeps
+`package-lock.json` in sync). With no manifest, the last published version is read
+straight from the **git tags** — the highest `vX.Y.Z`, with moving pointers like
+`v1` ignored, and `0.0.0` if there are none — so there is no version file to keep
+in sync. A committed `.version` file is still available via `language: generic`.
 
 ## Language support
 
 | `language` | Version source | Bump |
 |------------|----------------|------|
 | `node`     | `package.json` `"version"` | `npm version <bump>` |
+| `tag`      | the highest `vX.Y.Z` **git tag** (no file) | semver math |
 | `generic`  | `.version` (or `version-file`) | semver math |
-| `auto` (default) | `node` if `package.json` exists, else `generic` | — |
+| `auto` (default) | `node` if `package.json` exists, else `tag` | — |
 
-`Python` / `Rust` / `PHP` manifests are on the roadmap behind the same
-interface; until then point `version-file` at a `.version` for those repos.
+`tag` mode needs the tags fetched — check out with `fetch-depth: 0`. `Python` /
+`Rust` / `PHP` manifests are on the roadmap behind the same interface.
 
 ## Inputs
 
@@ -141,8 +143,8 @@ interface; until then point `version-file` at a `.version` for those repos.
 | `bump` | `patch` | `patch` \| `minor` \| `major` |
 | `notes-file` | `RELEASE_NOTES.md` | Path to the notes markdown file |
 | `placeholder` | `NEXT RELEASE` | Heading text of the unreleased section (no `## `) |
-| `language` | `auto` | `auto` \| `node` \| `generic` |
-| `version-file` | `.version` | Version file for the `generic` language |
+| `language` | `auto` | `auto` \| `node` \| `tag` \| `generic` |
+| `version-file` | `.version` | Version file for `language: generic` |
 | `tag-prefix` | `v` | Prefix prepended to the version to form the tag |
 | `create-release` | `true` | Create a GitHub Release from the notes |
 | `release-draft` | `false` | Create the Release as a draft |

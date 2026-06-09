@@ -37,7 +37,7 @@ const run = async () => {
 
   // 1. Bump version ---------------------------------------------------------
   const v = await core.group('Bump version', async () =>
-    applyBump({ language, bump, versionFile, dryRun })
+    applyBump({ language, bump, versionFile, tagPrefix, dryRun })
   );
   const tag = `${tagPrefix}${v.version}`;
 

@@ -24,15 +24,47 @@ export const bumpSemver = (current, type) => {
   return `${maj}.${min}.${pat}`;
 };
 
+const escapeRe = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
+// Highest released version taken straight from the git tags (e.g. v2.0.1),
+// ignoring moving pointers like `v1`. Returns 0.0.0 when no tag matches.
+// Needs the tags to be present (checkout with fetch-depth: 0).
+const versionFromTags = (prefix) => {
+  let out = '';
+  try {
+    out = execFileSync('git', ['tag', '--list'], { encoding: 'utf8' });
+  } catch {
+    out = '';
+  }
+  const re = new RegExp(`^${escapeRe(prefix)}(\\d+)\\.(\\d+)\\.(\\d+)$`);
+  const versions = out
+    .split('\n')
+    .map((t) => re.exec(t.trim()))
+    .filter(Boolean)
+    .map((m) => [Number(m[1]), Number(m[2]), Number(m[3])]);
+  if (!versions.length) return '0.0.0';
+  versions.sort((a, b) => a[0] - b[0] || a[1] - b[1] || a[2] - b[2]);
+  const [maj, min, pat] = versions[versions.length - 1];
+  return `${maj}.${min}.${pat}`;
+};
+
 export const detectLanguage = (lang) => {
   if (lang && lang !== 'auto') return lang;
-  return fs.existsSync('package.json') ? 'node' : 'generic';
+  // No manifest? Read the version straight from the git tags — no file to manage.
+  return fs.existsSync('package.json') ? 'node' : 'tag';
 };
 
 // Applies the bump to the right manifest and returns
 // { language, previous, version, files }. In dry-run, no file is written.
-export const applyBump = ({ language, bump, versionFile, dryRun }) => {
+export const applyBump = ({ language, bump, versionFile, tagPrefix, dryRun }) => {
   const lang = detectLanguage(language);
+
+  if (lang === 'tag') {
+    const previous = versionFromTags(tagPrefix || 'v');
+    const version = bumpSemver(previous, bump);
+    info(`tag: ${previous} -> ${version} (from git tags — no version file)`);
+    return { language: lang, previous, version, files: [] };
+  }
 
   if (lang === 'node') {
     const readVersion = () => JSON.parse(fs.readFileSync('package.json', 'utf8')).version;
