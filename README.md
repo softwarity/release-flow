@@ -20,6 +20,21 @@ A small, dependency-free composite action that turns a single manual choice
 ## Quick start
 
 ```yaml
+name: Release
+
+on:
+  workflow_dispatch:            # adds a "Run workflow" button in the Actions tab
+    inputs:
+      bump:
+        description: 'Version bump type'
+        required: true
+        default: patch
+        type: choice            # <-- this is what renders the patch/minor/major dropdown
+        options:
+          - patch
+          - minor
+          - major
+
 permissions:
   contents: write
 
@@ -36,8 +51,23 @@ jobs:
       - run: npm ci && npm run build && npm test
       - uses: softwarity/release-notes-action@v1
         with:
-          bump: ${{ inputs.bump }}           # patch | minor | major
+          bump: ${{ inputs.bump }}           # the value picked in the dropdown
 ```
+
+## Choosing patch / minor / major
+
+The bump is **not** decided by the action — *you* pick it when you launch the
+workflow. The `workflow_dispatch` + `type: choice` block above is what GitHub
+turns into a dropdown:
+
+> **Actions** tab → pick the *Release* workflow → **Run workflow** → choose
+> `patch` / `minor` / `major` → **Run workflow**.
+
+That choice arrives as `${{ inputs.bump }}` (equivalently
+`${{ github.event.inputs.bump }}`) and is forwarded to the action's `bump`
+input. The action just trusts that string — so you can trigger it any other way
+too (a PR label, a `release` event, the API…) as long as you pass
+`patch | minor | major` into `bump:`. The dropdown is simply the common case.
 
 A full, copy-pasteable workflow is in [`examples/release.yml`](examples/release.yml).
 
@@ -149,6 +179,10 @@ The released tag should contain the *finished* notes for that version and
 nothing else. So the action commits `version + resolved notes`, **tags that
 commit**, creates the Release, and only then adds the empty `## NEXT RELEASE`
 section in a separate commit. The fresh placeholder is never inside a release tag.
+
+That second commit only touches the notes file, so its message carries
+`[skip ci]` — it won't re-trigger push-based CI. The tag points at the *release*
+commit, so tag-triggered workflows (e.g. an NPM publish on `push: tags`) still run.
 
 ## Migrating an existing `RELEASE_NOTES.md`
 

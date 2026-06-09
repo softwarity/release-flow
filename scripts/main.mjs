@@ -96,7 +96,10 @@ const run = async () => {
   await core.group('Open next placeholder section', async () => {
     const next = insertPlaceholder(fs.readFileSync(notesFile, 'utf8'), placeholder);
     fs.writeFileSync(notesFile, next);
-    git.commit(`chore: open "${placeholder}" section`, [notesFile]);
+    // [skip ci]: this commit only re-opens the notes placeholder — no code change,
+    // so it should not re-trigger push CI. The release tag points at the previous
+    // commit, so tag-triggered workflows (publish) still run.
+    git.commit(`chore: open "${placeholder}" section [skip ci]`, [notesFile]);
     if (doPush) git.push();
   });
 };
