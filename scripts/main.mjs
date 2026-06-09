@@ -83,7 +83,7 @@ const run = async () => {
       core.warn('create-release needs the tag pushed (push=false) — skipping the GitHub Release.');
     } else {
       await core.group('Create GitHub Release', async () => {
-        const bodyFile = path.join(os.tmpdir(), 'release-notes-action-body.md');
+        const bodyFile = path.join(os.tmpdir(), 'release-flow-body.md');
         fs.writeFileSync(bodyFile, body || '_No release notes._');
         const url = createRelease({ tag, title: tag, bodyFile, draft, prerelease });
         core.info(`Release: ${url}`);

@@ -45,7 +45,7 @@ jobs:
           npm test
 
       - name: Release
-        uses: softwarity/release-notes-action@v1
+        uses: softwarity/release-flow@v1
         with:
           bump: ${{ inputs.bump }}
           # All of these are optional — defaults shown:

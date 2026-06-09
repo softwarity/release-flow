@@ -1,4 +1,4 @@
-name: 'Release Notes & Version'
+name: 'Release Flow'
 description: >-
   Bump the version, resolve a "NEXT RELEASE" notes section into the new version,
   tag, and publish a GitHub Release. Language-aware (Node package.json or a

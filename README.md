@@ -1,4 +1,4 @@
-# Release Notes &amp; Version — GitHub Action
+# Release Flow — GitHub Action
 
 A small, dependency-free composite action that turns a single manual choice
 (`patch` / `minor` / `major`) into a complete release:
@@ -49,7 +49,7 @@ jobs:
       - uses: actions/setup-node@v4
         with: { node-version: '20', cache: npm }
       - run: npm ci && npm run build && npm test
-      - uses: softwarity/release-notes-action@v1
+      - uses: softwarity/release-flow@v1
         with:
           bump: ${{ inputs.bump }}           # the value picked in the dropdown
 ```
@@ -198,7 +198,7 @@ node scripts/test.mjs     # pure-logic smoke tests (notes parsing + semver)
 Run the whole flow without side effects on any repo with:
 
 ```yaml
-- uses: softwarity/release-notes-action@v1
+- uses: softwarity/release-flow@v1
   with: { bump: patch, dry-run: true }
 ```
 
