@@ -1,0 +1,39 @@
+# release-flow releases itself (dogfooding). No npm, so no PAT and no publish job:
+# the action creates the GitHub Release directly, and --latest is handled by the major tag.
+name: Release
+run-name: ${{ github.actor }} release ${{ inputs.bump }}
+
+on:
+  workflow_dispatch:
+    inputs:
+      bump:
+        description: 'Version bump type'
+        required: true
+        default: patch
+        type: choice
+        options:
+          - patch
+          - minor
+          - major
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    name: Release
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # default GITHUB_TOKEN — no PAT needed (not published to npm)
+
+      - name: Smoke test
+        run: node scripts/test.mjs
+
+      - name: Release
+        uses: ./ # release-flow runs its own current code
+        with:
+          bump: ${{ inputs.bump }}
+          major-tag: true # also move the v1 pointer to this release

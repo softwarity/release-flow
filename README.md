@@ -148,6 +148,7 @@ interface; until then point `version-file` at a `.version` for those repos.
 | `release-draft` | `false` | Create the Release as a draft |
 | `release-prerelease` | `false` | Mark the Release as a prerelease |
 | `push` | `true` | Push the commits and the tag |
+| `major-tag` | `false` | Also force-move the major tag (`v1`) to this release — for publishing reusable actions |
 | `commit-user-name` | `github-actions[bot]` | git `user.name` for the commits |
 | `commit-user-email` | `github-actions[bot]@users.noreply.github.com` | git `user.email` |
 | `token` | `${{ github.token }}` | Token used to create the Release (needs `contents: write`) |
@@ -188,6 +189,14 @@ commit, so tag-triggered workflows (e.g. an NPM publish on `push: tags`) still r
 
 If your top section is currently a *guessed* next number (e.g. `## 0.2.10`),
 rename that heading once to `## NEXT RELEASE`. From then on the action fills it in.
+
+## Publishing a reusable action
+
+If the repo you're releasing **is itself a GitHub Action** (consumed as
+`you/action@v1`), set `major-tag: true`. After tagging `vX.Y.Z`, the action also
+force-moves the major tag (`vX`) to the same commit, so your `@v1` consumers get the
+new release with no extra step — no `npm`, no PAT needed. release-flow uses this on
+itself (see its own [`.github/workflows/release.yml`](.github/workflows/release.yml)).
 
 ## Local development
 

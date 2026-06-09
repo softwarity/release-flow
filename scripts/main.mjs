@@ -26,6 +26,7 @@ const run = async () => {
   const draft = core.getBool('release-draft', false);
   const prerelease = core.getBool('release-prerelease', false);
   const doPush = core.getBool('push', true);
+  const majorTag = core.getBool('major-tag', false);
   const userName = core.getInput('commit-user-name', 'github-actions[bot]');
   const userEmail = core.getInput('commit-user-email', 'github-actions[bot]@users.noreply.github.com');
   const dryRun = core.getBool('dry-run', false);
@@ -74,6 +75,15 @@ const run = async () => {
     if (doPush) {
       git.push();
       git.pushTag(tag);
+      if (majorTag) {
+        // For repos that ARE a reusable action: move the major pointer (e.g. v1)
+        // to this release so `@v1` consumers get it. Done on the release commit,
+        // before the placeholder commit — same target as the version tag.
+        const major = `${tagPrefix}${v.version.split('.')[0]}`;
+        git.forceTag(major);
+        git.forcePushTag(major);
+        core.info(`Major tag ${major} -> ${tag}`);
+      }
     }
   });
 

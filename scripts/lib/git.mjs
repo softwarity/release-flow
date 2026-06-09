@@ -14,5 +14,7 @@ export const commit = (message, files) => {
 };
 
 export const tag = (name) => git(['tag', name]);
+export const forceTag = (name) => git(['tag', '-f', name]);
 export const push = () => git(['push']);
 export const pushTag = (name) => git(['push', 'origin', name]);
+export const forcePushTag = (name) => git(['push', '-f', 'origin', name]);
