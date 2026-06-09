@@ -1,5 +1,9 @@
 # Release Notes
 
+## NEXT RELEASE
+
+---
+
 ## 1.0.1
 
 ### Changed
