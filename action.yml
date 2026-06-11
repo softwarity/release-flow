@@ -53,6 +53,10 @@ inputs:
     description: 'Also force-update the major tag (e.g. v1) to this release — for publishing reusable actions (true/false)'
     required: false
     default: 'false'
+  single-commit:
+    description: 'One commit per release: fold the re-opened NEXT RELEASE placeholder into the release commit (the tag then includes the empty placeholder) (true/false)'
+    required: false
+    default: 'true'
   commit-user-name:
     description: 'git user.name for the release commits'
     required: false
@@ -108,6 +112,7 @@ runs:
         RNA_RELEASE_PRERELEASE: ${{ inputs.release-prerelease }}
         RNA_PUSH: ${{ inputs.push }}
         RNA_MAJOR_TAG: ${{ inputs.major-tag }}
+        RNA_SINGLE_COMMIT: ${{ inputs.single-commit }}
         RNA_COMMIT_USER_NAME: ${{ inputs.commit-user-name }}
         RNA_COMMIT_USER_EMAIL: ${{ inputs.commit-user-email }}
         RNA_DRY_RUN: ${{ inputs.dry-run }}

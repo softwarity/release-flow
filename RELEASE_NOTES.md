@@ -2,6 +2,15 @@
 
 ## NEXT RELEASE
 
+### Added
+
+- **`single-commit` input** (default `true`): a release is now **one commit** — the
+  resolved notes and a fresh `## NEXT RELEASE` are folded together and tagged, so
+  contributors pull a single commit per release. The tag's notes file then shows an
+  empty `## NEXT RELEASE` at the top (cosmetic; the GitHub Release body and the
+  published package are unaffected). Set `single-commit: false` to keep the previous
+  two-commit behaviour (a "pure" tag with no placeholder).
+
 ---
 
 ## 1.1.0

@@ -151,6 +151,7 @@ in sync. A committed `.version` file is still available via `language: generic`.
 | `release-prerelease` | `false` | Mark the Release as a prerelease |
 | `push` | `true` | Push the commits and the tag |
 | `major-tag` | `false` | Also force-move the major tag (`v1`) to this release — for publishing reusable actions |
+| `single-commit` | `true` | One commit per release (fold the placeholder in; the tag then includes the empty `## NEXT RELEASE`) |
 | `commit-user-name` | `github-actions[bot]` | git `user.name` for the commits |
 | `commit-user-email` | `github-actions[bot]@users.noreply.github.com` | git `user.email` |
 | `token` | `${{ github.token }}` | Token used to create the Release (needs `contents: write`) |
@@ -176,16 +177,23 @@ in sync. A committed `.version` file is still available via `language: generic`.
   check out with a **PAT** — pushes made with `GITHUB_TOKEN` do not trigger
   workflows.
 
-## Why the tag comes *before* the new placeholder
+## One commit per release (and the tag)
 
-The released tag should contain the *finished* notes for that version and
-nothing else. So the action commits `version + resolved notes`, **tags that
-commit**, creates the Release, and only then adds the empty `## NEXT RELEASE`
-section in a separate commit. The fresh placeholder is never inside a release tag.
+By default (`single-commit: true`) a release is **one commit**: the resolved
+notes (`## X.Y.Z`) and a fresh empty `## NEXT RELEASE` are folded together, and
+that commit is tagged — so contributors pull a single commit per release. The
+trade-off: the `RELEASE_NOTES.md` *inside the tag* shows an empty `## NEXT
+RELEASE` at the top. It's cosmetic — the GitHub Release body (extracted before)
+and the published package are unaffected.
 
-That second commit only touches the notes file, so its message carries
-`[skip ci]` — it won't re-trigger push-based CI. The tag points at the *release*
-commit, so tag-triggered workflows (e.g. an NPM publish on `push: tags`) still run.
+Set `single-commit: false` for a **pure tag** instead: the action tags the
+`version + resolved notes` commit (no placeholder), then re-opens `## NEXT
+RELEASE` in a *separate* follow-up commit carrying `[skip ci]`. The tag never
+contains the placeholder, at the cost of two commits per release.
+
+(Folding with `git commit --amend` after tagging is deliberately **not** used: it
+would leave the tag pointing at a commit *off the branch*, breaking `git
+describe` and GitHub's "N commits since this release".)
 
 ## Migrating an existing `RELEASE_NOTES.md`
 

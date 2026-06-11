@@ -27,6 +27,7 @@ const run = async () => {
   const prerelease = core.getBool('release-prerelease', false);
   const doPush = core.getBool('push', true);
   const majorTag = core.getBool('major-tag', false);
+  const singleCommit = core.getBool('single-commit', true);
   const userName = core.getInput('commit-user-name', 'github-actions[bot]');
   const userEmail = core.getInput('commit-user-email', 'github-actions[bot]@users.noreply.github.com');
   const dryRun = core.getBool('dry-run', false);
@@ -48,7 +49,10 @@ const run = async () => {
     const raw = fs.readFileSync(notesFile, 'utf8');
     const resolved = resolveSection(raw, placeholder, v.version);
     if (!resolved.body) core.warn(`Section "## ${placeholder}" is empty — release notes will be blank.`);
-    if (!dryRun) fs.writeFileSync(notesFile, resolved.content);
+    // single-commit (default): fold the fresh placeholder in now, so the release
+    // commit is the only one (the tag then includes the empty placeholder).
+    const content = singleCommit ? insertPlaceholder(resolved.content, placeholder) : resolved.content;
+    if (!dryRun) fs.writeFileSync(notesFile, content);
     core.info(`Section "## ${placeholder}" -> "## ${v.version}" (${resolved.body.length} chars)`);
     return { body: resolved.body, created };
   });
@@ -102,16 +106,20 @@ const run = async () => {
     }
   }
 
-  // 5. Open a fresh placeholder for the next cycle --------------------------
-  await core.group('Open next placeholder section', async () => {
-    const next = insertPlaceholder(fs.readFileSync(notesFile, 'utf8'), placeholder);
-    fs.writeFileSync(notesFile, next);
-    // [skip ci]: this commit only re-opens the notes placeholder — no code change,
-    // so it should not re-trigger push CI. The release tag points at the previous
-    // commit, so tag-triggered workflows (publish) still run.
-    git.commit(`chore: open "${placeholder}" section [skip ci]`, [notesFile]);
-    if (doPush) git.push();
-  });
+  // 5. Open a fresh placeholder for the next cycle — only in two-commit mode.
+  //    In single-commit mode the placeholder was already folded into the release
+  //    commit above, so there is nothing left to do here.
+  if (!singleCommit) {
+    await core.group('Open next placeholder section', async () => {
+      const next = insertPlaceholder(fs.readFileSync(notesFile, 'utf8'), placeholder);
+      fs.writeFileSync(notesFile, next);
+      // [skip ci]: this commit only re-opens the notes placeholder — no code change,
+      // so it should not re-trigger push CI. The release tag points at the previous
+      // commit, so tag-triggered workflows (publish) still run.
+      git.commit(`chore: open "${placeholder}" section [skip ci]`, [notesFile]);
+      if (doPush) git.push();
+    });
+  }
 };
 
 run().catch((e) => core.setFailed(e.message));
