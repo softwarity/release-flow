@@ -2,6 +2,10 @@
 
 ## NEXT RELEASE
 
+---
+
+## 1.1.1
+
 ### Added
 
 - **`single-commit` input** (default `true`): a release is now **one commit** — the
