@@ -9,8 +9,8 @@ A small, dependency-free composite action that turns a single manual choice
    `## NEXT RELEASE` section to the new version number and extracts its body.
 3. **Commits and tags** that state — so the tag captures the finished notes.
 4. **Publishes a GitHub Release** from the extracted body.
-5. **Re-opens a fresh `## NEXT RELEASE` section** in a *follow-up* commit, ready
-   for the next cycle — so contributors only ever *fill in* a section, never add one.
+5. **Re-opens a fresh `## NEXT RELEASE` section** for the next cycle — so
+   contributors only ever *fill in* a section, never add one.
 
 > The placeholder is the whole point: at authoring time you don't yet know
 > whether the next release is a patch, minor or major, so you write under a
@@ -90,16 +90,16 @@ A full, copy-pasteable workflow is in [`examples/release.yml`](examples/release.
 ```
 
 During the cycle, contributors edit the `## NEXT RELEASE` section. On release
-with `bump: patch`, given `package.json` at `2.0.1`, the action produces:
+with `bump: patch`, given the last version `2.0.1`, the action produces:
 
 ```markdown
 # Release Notes
 
-## NEXT RELEASE          <- fresh, empty (added after the tag)
+## NEXT RELEASE          <- fresh & empty: where the NEXT release is drafted
 
 ---
 
-## 2.0.2                 <- was NEXT RELEASE; this is what the v2.0.2 tag points at
+## 2.0.2                 <- was NEXT RELEASE; this is the v2.0.2 release
 
 ### Features
 
@@ -111,7 +111,15 @@ with `bump: patch`, given `package.json` at `2.0.1`, the action produces:
 ...
 ```
 
-and a GitHub Release **v2.0.2** whose body is the `### Features …` block.
+…and a GitHub Release **v2.0.2** whose body is the `### Features …` block — the
+empty `## NEXT RELEASE` is **not** part of it: the body is sliced from the
+`## 2.0.2` section *before* the placeholder is re-added.
+
+By default (`single-commit: true`) this is **one commit**, so the `v2.0.2` tag
+includes the empty `## NEXT RELEASE` at the top. That's intentional — it's just
+the (still-empty) drafting section for the next version, and it never reaches the
+GitHub Release body or the published package. Want a tag with no placeholder at
+all? Set `single-commit: false` (see [One commit per release](#one-commit-per-release-and-the-tag)).
 
 If the notes file doesn't exist, the action creates it.
 
