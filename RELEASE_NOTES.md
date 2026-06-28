@@ -2,6 +2,10 @@
 
 ## NEXT RELEASE
 
+---
+
+## 1.2.0
+
 ### Added
 
 - **`maven_docker` language mode** for Maven projects shipped as a Docker image: the
