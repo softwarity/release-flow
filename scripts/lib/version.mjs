@@ -50,8 +50,11 @@ const versionFromTags = (prefix) => {
 
 export const detectLanguage = (lang) => {
   if (lang && lang !== 'auto') return lang;
-  // No manifest? Read the version straight from the git tags — no file to manage.
-  return fs.existsSync('package.json') ? 'node' : 'tag';
+  if (fs.existsSync('package.json')) return 'node';
+  // A Maven project shipped as a Docker image: sync the pom via mvn-in-Docker.
+  if (fs.existsSync('pom.xml') && fs.existsSync('Dockerfile')) return 'maven_docker';
+  // Otherwise: no manifest — version straight from the git tags, no file to manage.
+  return 'tag';
 };
 
 // Applies the bump to the right manifest and returns

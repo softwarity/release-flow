@@ -140,7 +140,7 @@ in sync. A committed `.version` file is still available via `language: generic`.
 | `tag`      | the highest `vX.Y.Z` **git tag** (no file) | semver math |
 | `maven_docker` | git tag → written into `pom.xml` (`mvn versions:set`, run in Docker) | semver math |
 | `generic`  | `.version` (or `version-file`) | semver math |
-| `auto` (default) | `node` if `package.json` exists, else `tag` | — |
+| `auto` (default) | `package.json`→`node`, `pom.xml`+`Dockerfile`→`maven_docker`, else `tag` | — |
 
 `tag` and `maven_docker` read the version from the git tags, so check out with
 `fetch-depth: 0`. **`maven_docker`** also needs Docker on the runner: it runs

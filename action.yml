@@ -22,7 +22,7 @@ inputs:
     required: false
     default: 'NEXT RELEASE'
   language:
-    description: 'auto | node | tag | maven_docker | generic. auto = node if package.json exists, else tag'
+    description: 'auto | node | tag | maven_docker | generic. auto: package.json→node, pom.xml+Dockerfile→maven_docker, else→tag'
     required: false
     default: 'auto'
   version-file:

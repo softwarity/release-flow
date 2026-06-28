@@ -9,7 +9,8 @@
   via `mvn versions:set` run **inside a Maven Docker image** (input `maven-image`,
   default `maven:3-eclipse-temurin`). No local Java/Maven on the runner, and real
   `mvn` updates only the project `<version>` (never `<parent>`/dependency versions).
-  Needs Docker + `fetch-depth: 0`.
+  Needs Docker + `fetch-depth: 0`. **Auto-detected** when both a `pom.xml` and a
+  `Dockerfile` are present — no need to set `language`.
 
 ---
 
