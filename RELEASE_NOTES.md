@@ -2,6 +2,15 @@
 
 ## NEXT RELEASE
 
+### Added
+
+- **`maven_docker` language mode** for Maven projects shipped as a Docker image: the
+  version is read from the git tags (the source of truth) and **synced into `pom.xml`**
+  via `mvn versions:set` run **inside a Maven Docker image** (input `maven-image`,
+  default `maven:3-eclipse-temurin`). No local Java/Maven on the runner, and real
+  `mvn` updates only the project `<version>` (never `<parent>`/dependency versions).
+  Needs Docker + `fetch-depth: 0`.
+
 ---
 
 ## 1.1.1

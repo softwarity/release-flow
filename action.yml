@@ -22,13 +22,17 @@ inputs:
     required: false
     default: 'NEXT RELEASE'
   language:
-    description: 'auto | node | tag | generic. auto = node if package.json exists, else tag (version read from git tags, no file)'
+    description: 'auto | node | tag | maven_docker | generic. auto = node if package.json exists, else tag'
     required: false
     default: 'auto'
   version-file:
     description: 'Version file for the generic language (defaults to ".version")'
     required: false
     default: ''
+  maven-image:
+    description: 'Docker image used to run "mvn versions:set" in maven_docker mode'
+    required: false
+    default: 'maven:3-eclipse-temurin'
   tag-prefix:
     description: 'Prefix prepended to the version to form the git tag (e.g. "v")'
     required: false
@@ -106,6 +110,7 @@ runs:
         RNA_PLACEHOLDER: ${{ inputs.placeholder }}
         RNA_LANGUAGE: ${{ inputs.language }}
         RNA_VERSION_FILE: ${{ inputs.version-file }}
+        RNA_MAVEN_IMAGE: ${{ inputs.maven-image }}
         RNA_TAG_PREFIX: ${{ inputs.tag-prefix }}
         RNA_CREATE_RELEASE: ${{ inputs.create-release }}
         RNA_RELEASE_DRAFT: ${{ inputs.release-draft }}

@@ -138,11 +138,17 @@ in sync. A committed `.version` file is still available via `language: generic`.
 |------------|----------------|------|
 | `node`     | `package.json` `"version"` | `npm version <bump>` |
 | `tag`      | the highest `vX.Y.Z` **git tag** (no file) | semver math |
+| `maven_docker` | git tag → written into `pom.xml` (`mvn versions:set`, run in Docker) | semver math |
 | `generic`  | `.version` (or `version-file`) | semver math |
 | `auto` (default) | `node` if `package.json` exists, else `tag` | — |
 
-`tag` mode needs the tags fetched — check out with `fetch-depth: 0`. `Python` /
-`Rust` / `PHP` manifests are on the roadmap behind the same interface.
+`tag` and `maven_docker` read the version from the git tags, so check out with
+`fetch-depth: 0`. **`maven_docker`** also needs Docker on the runner: it runs
+`mvn versions:set` in the `maven-image` container (default `maven:3-eclipse-temurin`)
+— no local Java/Maven needed, and real `mvn` updates **only** the project
+`<version>`, never the `<parent>` or dependency versions (a regex would). It suits a
+Maven project shipped as a Docker image, where the tag is the source of truth and the
+pom version just needs to stay in sync. `Python` / `Rust` / `PHP` are on the roadmap.
 
 ## Inputs
 
@@ -151,8 +157,9 @@ in sync. A committed `.version` file is still available via `language: generic`.
 | `bump` | `patch` | `patch` \| `minor` \| `major` |
 | `notes-file` | `RELEASE_NOTES.md` | Path to the notes markdown file |
 | `placeholder` | `NEXT RELEASE` | Heading text of the unreleased section (no `## `) |
-| `language` | `auto` | `auto` \| `node` \| `tag` \| `generic` |
+| `language` | `auto` | `auto` \| `node` \| `tag` \| `maven_docker` \| `generic` |
 | `version-file` | `.version` | Version file for `language: generic` |
+| `maven-image` | `maven:3-eclipse-temurin` | Docker image running `mvn versions:set` for `language: maven_docker` |
 | `tag-prefix` | `v` | Prefix prepended to the version to form the tag |
 | `create-release` | `true` | Create a GitHub Release from the notes |
 | `release-draft` | `false` | Create the Release as a draft |

@@ -28,6 +28,7 @@ const run = async () => {
   const doPush = core.getBool('push', true);
   const majorTag = core.getBool('major-tag', false);
   const singleCommit = core.getBool('single-commit', true);
+  const mavenImage = core.getInput('maven-image', 'maven:3-eclipse-temurin');
   const userName = core.getInput('commit-user-name', 'github-actions[bot]');
   const userEmail = core.getInput('commit-user-email', 'github-actions[bot]@users.noreply.github.com');
   const dryRun = core.getBool('dry-run', false);
@@ -38,7 +39,7 @@ const run = async () => {
 
   // 1. Bump version ---------------------------------------------------------
   const v = await core.group('Bump version', async () =>
-    applyBump({ language, bump, versionFile, tagPrefix, dryRun })
+    applyBump({ language, bump, versionFile, tagPrefix, mavenImage, dryRun })
   );
   const tag = `${tagPrefix}${v.version}`;
 

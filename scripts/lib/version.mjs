@@ -56,7 +56,7 @@ export const detectLanguage = (lang) => {
 
 // Applies the bump to the right manifest and returns
 // { language, previous, version, files }. In dry-run, no file is written.
-export const applyBump = ({ language, bump, versionFile, tagPrefix, dryRun }) => {
+export const applyBump = ({ language, bump, versionFile, tagPrefix, mavenImage, dryRun }) => {
   const lang = detectLanguage(language);
 
   if (lang === 'tag') {
@@ -64,6 +64,39 @@ export const applyBump = ({ language, bump, versionFile, tagPrefix, dryRun }) =>
     const version = bumpSemver(previous, bump);
     info(`tag: ${previous} -> ${version} (from git tags — no version file)`);
     return { language: lang, previous, version, files: [] };
+  }
+
+  if (lang === 'maven_docker') {
+    // Tag-driven version (the git tag is the source of truth); the pom.xml
+    // <version> is synced to match. The bump runs INSIDE the maven Docker image,
+    // so the runner needs no local Java/Maven, and real `mvn` updates ONLY the
+    // project version — never the <parent> or dependency <version>s (the trap a
+    // regex would fall into). The container runs as the current user with a
+    // writable HOME so the edited pom is owned by the runner and git can commit it.
+    const previous = versionFromTags(tagPrefix || 'v');
+    const version = bumpSemver(previous, bump);
+    const image = mavenImage || 'maven:3-eclipse-temurin';
+    if (!dryRun) {
+      execFileSync(
+        'docker',
+        [
+          'run', '--rm',
+          '-u', `${process.getuid()}:${process.getgid()}`,
+          // Non-root user has no /root: give maven a writable HOME + .m2.
+          '-e', 'HOME=/tmp',
+          '-e', 'MAVEN_CONFIG=/tmp/.m2',
+          '-v', `${process.cwd()}:/w`,
+          '-w', '/w',
+          image,
+          'mvn', '-B', '-q', '-Duser.home=/tmp', 'versions:set',
+          `-DnewVersion=${version}`,
+          '-DgenerateBackupPoms=false',
+        ],
+        { stdio: 'inherit' }
+      );
+    }
+    info(`maven_docker: ${previous} -> ${version} (tag-derived; pom.xml synced via ${image})`);
+    return { language: lang, previous, version, files: ['pom.xml'] };
   }
 
   if (lang === 'node') {
