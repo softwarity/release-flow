@@ -2,6 +2,21 @@
 
 ## NEXT RELEASE
 
+### Changed
+
+- **`helm-chart` now defaults to `auto`**: a project whose chart sits at
+  `helm/Chart.yaml` — the conventional spot for a chart living beside the code it
+  deploys — gets its `version` and `appVersion` synced with **no configuration at
+  all**, the way `language: auto` already picks the version manifest. Detection is
+  narrow on purpose: exactly that path, never a recursive search, and never
+  `charts/`, where Helm keeps dependency subcharts. A project with no chart logs
+  nothing and is unaffected.
+- Note for existing users: a repository that already has `helm/Chart.yaml` and
+  releases with `@v1` will now see that file updated and included in the release
+  commit. That is the intent — a chart shipped with the code should carry the
+  released version. Pass `helm-chart: none` to keep the previous behaviour, for
+  instance when the chart follows a release cycle of its own.
+
 ---
 
 ## 1.3.0

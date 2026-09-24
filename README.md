@@ -159,7 +159,7 @@ pom version just needs to stay in sync. `Python` / `Rust` / `PHP` are on the roa
 | `placeholder` | `NEXT RELEASE` | Heading text of the unreleased section (no `## `) |
 | `language` | `auto` | `auto` \| `node` \| `tag` \| `maven_docker` \| `generic` |
 | `version-file` | `.version` | Version file for `language: generic` |
-| `helm-chart` | _(empty)_ | Helm chart directory, or its `Chart.yaml`, to keep in sync — empty disables it |
+| `helm-chart` | `auto` | `auto` (sync `helm/Chart.yaml` if present) \| `none` \| a chart directory or `Chart.yaml` path |
 | `helm-app-version` | `true` | Also set the chart's `appVersion` to the released version |
 | `maven-image` | `maven:3-eclipse-temurin` | Docker image running `mvn versions:set` for `language: maven_docker` |
 | `tag-prefix` | `v` | Prefix prepended to the version to form the tag |
@@ -188,21 +188,30 @@ pom version just needs to stay in sync. `Python` / `Rust` / `PHP` are on the roa
 ## Helm charts
 
 A project that ships a chart next to its code has a second place holding the
-version. Point `helm-chart` at it and the chart is rewritten and **committed with
-the release**, so the tag points at a chart that deploys that tag's image:
+version. If that chart sits at **`helm/Chart.yaml`** — the conventional spot for
+a chart living beside the code it deploys — there is **nothing to configure**:
 
 ```yaml
 - uses: softwarity/release-flow@v1
   with:
     bump: ${{ inputs.bump }}
-    helm-chart: helm          # or deploy/chart, or helm/Chart.yaml
 ```
 
-Releasing `1.4.0` writes:
+The chart is rewritten and **committed with the release**, so the tag points at a
+chart that deploys that tag's image. Releasing `1.4.0` writes:
 
 ```yaml
 version: 1.4.0        # the chart's own version
 appVersion: "1.4.0"   # the image tag it deploys
+```
+
+Detection is deliberately narrow — exactly `helm/Chart.yaml`, never a recursive
+search, and never `charts/`, which is where Helm puts dependency subcharts.
+Elsewhere, or to opt out:
+
+```yaml
+    helm-chart: deploy/chart   # an explicit directory or Chart.yaml (missing = error)
+    helm-chart: none           # leave the chart alone, even if helm/ exists
 ```
 
 Only the **top-level** keys are touched, so a `dependencies:` block keeps its own

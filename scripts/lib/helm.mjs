@@ -7,14 +7,30 @@
 import fs from 'node:fs';
 import path from 'node:path';
 
-// Accepts the chart directory ("helm", "deploy/chart") or the Chart.yaml itself.
-// Returns null when the input is empty (feature disabled).
+// The conventional location: a chart living next to the code it deploys.
+export const DEFAULT_CHART = 'helm/Chart.yaml';
+
+// Resolves the `helm-chart` input to a Chart.yaml path, or null when there is
+// nothing to sync. Three modes, mirroring `language: auto`:
+//
+//   "auto" (default) — sync helm/Chart.yaml if it exists, stay quiet otherwise.
+//   "none" | ""      — explicitly disabled, even if a chart is there.
+//   <path>           — an explicit chart directory or Chart.yaml; missing is an error.
+//
+// Detection is deliberately narrow: exactly helm/Chart.yaml, never a recursive
+// search, and never charts/ — that is where Helm puts dependency subcharts, and
+// bumping a third-party chart's version would be silent corruption.
 export const resolveChartFile = (input) => {
-  const p = (input || '').trim();
-  if (!p) return null;
-  const file = /\.ya?ml$/.test(p) ? p : path.join(p, 'Chart.yaml');
+  const raw = (input || '').trim();
+  if (!raw || raw.toLowerCase() === 'none' || raw.toLowerCase() === 'false') return null;
+
+  if (raw.toLowerCase() === 'auto') {
+    return fs.existsSync(DEFAULT_CHART) ? DEFAULT_CHART : null;
+  }
+
+  const file = /\.ya?ml$/.test(raw) ? raw : path.join(raw, 'Chart.yaml');
   if (!fs.existsSync(file)) {
-    throw new Error(`helm-chart: "${file}" not found — pass the chart directory or its Chart.yaml.`);
+    throw new Error(`helm-chart: "${file}" not found — pass the chart directory or its Chart.yaml, or "none" to disable.`);
   }
   return file;
 };
@@ -45,8 +61,10 @@ export const setChartVersion = (content, version, { appVersion = true } = {}) =>
 };
 
 // Applies the sync and returns the files to commit ([] when disabled).
-export const syncChart = ({ chartInput, version, appVersion = true, dryRun = false }) => {
-  const file = resolveChartFile(chartInput);
+// `chartFile` comes from resolveChartFile; `chartInput` is still accepted so a
+// caller can hand over the raw input instead.
+export const syncChart = ({ chartFile, chartInput, version, appVersion = true, dryRun = false }) => {
+  const file = chartFile ?? resolveChartFile(chartInput);
   if (!file) return [];
   const before = fs.readFileSync(file, 'utf8');
   const after = setChartVersion(before, version, { appVersion });

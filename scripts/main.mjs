@@ -12,7 +12,7 @@ import path from 'node:path';
 import * as core from './lib/core.mjs';
 import { applyBump } from './lib/version.mjs';
 import { ensureFile, resolveSection, insertPlaceholder } from './lib/notes.mjs';
-import { syncChart } from './lib/helm.mjs';
+import { resolveChartFile, syncChart } from './lib/helm.mjs';
 import * as git from './lib/git.mjs';
 import { createRelease } from './lib/release.mjs';
 
@@ -22,7 +22,7 @@ const run = async () => {
   const placeholder = core.getInput('placeholder', 'NEXT RELEASE');
   const language = core.getInput('language', 'auto');
   const versionFile = core.getInput('version-file', '');
-  const helmChart = core.getInput('helm-chart', '');
+  const helmChart = core.getInput('helm-chart', 'auto');
   const helmAppVersion = core.getBool('helm-app-version', true);
   const tagPrefix = core.getInput('tag-prefix', 'v');
   const doRelease = core.getBool('create-release', true);
@@ -49,16 +49,21 @@ const run = async () => {
   // 1b. Sync the Helm chart, if the project ships one ------------------------
   // Done here so the chart files land in the release commit, and therefore in
   // the tag: the chart a tag points at always deploys that tag's image.
-  const helmFiles = helmChart
+  // Resolved before the group so a project without a chart logs nothing at all.
+  const chartFile = resolveChartFile(helmChart);
+  const helmFiles = chartFile
     ? await core.group('Sync Helm chart', async () => {
         const files = syncChart({
-          chartInput: helmChart,
+          chartFile,
           version: v.version,
           appVersion: helmAppVersion,
           dryRun,
         });
         for (const f of files) {
           core.info(`${f}: version -> ${v.version}${helmAppVersion ? `, appVersion -> "${v.version}"` : ''}`);
+        }
+        if (helmChart.trim().toLowerCase() === 'auto') {
+          core.info('Detected automatically — pass helm-chart: none to leave the chart alone.');
         }
         return files;
       })

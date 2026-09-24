@@ -6,7 +6,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { bumpSemver } from './lib/version.mjs';
 import { ensureFile, resolveSection, insertPlaceholder } from './lib/notes.mjs';
-import { setChartVersion, resolveChartFile, syncChart } from './lib/helm.mjs';
+import { setChartVersion, resolveChartFile, syncChart, DEFAULT_CHART } from './lib/helm.mjs';
 
 let passed = 0;
 const ok = (label) => {
@@ -182,6 +182,8 @@ ok('bumpSemver patch/minor/major + validation');
   fs.writeFileSync(file, 'name: c\nversion: 0.0.0\nappVersion: "0.0.0"\n');
 
   assert.equal(resolveChartFile(''), null, 'empty input disables the feature');
+  assert.equal(resolveChartFile('none'), null, '"none" disables it explicitly');
+  assert.equal(resolveChartFile('NONE'), null, 'case does not matter');
   assert.equal(resolveChartFile(chartDir), file, 'directory resolves to Chart.yaml');
   assert.equal(resolveChartFile(file), file, 'an explicit Chart.yaml is kept');
   assert.throws(() => resolveChartFile(path.join(dir, 'nope')), /not found/);
@@ -196,6 +198,37 @@ ok('bumpSemver patch/minor/major + validation');
 
   fs.rmSync(dir, { recursive: true, force: true });
   ok('syncChart resolves the path, honours dry-run and returns the files to commit');
+}
+
+// --- helm: auto-detection of helm/Chart.yaml -----------------------------
+{
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'rna-auto-'));
+  const cwd = process.cwd();
+  process.chdir(dir);
+
+  // No chart in the project: auto stays quiet, it does not throw.
+  assert.equal(resolveChartFile('auto'), null, 'auto is a no-op without a chart');
+  assert.equal(resolveChartFile(undefined), null, 'undefined behaves like disabled');
+
+  // The conventional location is picked up with no configuration at all.
+  fs.mkdirSync('helm');
+  fs.writeFileSync(path.join('helm', 'Chart.yaml'), 'name: c\nversion: 0.0.0\nappVersion: "0.0.0"\n');
+  assert.equal(resolveChartFile('auto'), DEFAULT_CHART, 'auto finds helm/Chart.yaml');
+  assert.equal(resolveChartFile('AUTO'), DEFAULT_CHART, 'case does not matter');
+  assert.equal(resolveChartFile('none'), null, 'none wins over a present chart');
+
+  // charts/ is where Helm puts dependency subcharts — never auto-detected.
+  fs.mkdirSync(path.join('charts', 'redis'), { recursive: true });
+  fs.writeFileSync(path.join('charts', 'redis', 'Chart.yaml'), 'name: redis\nversion: 17.11.3\n');
+  fs.rmSync('helm', { recursive: true, force: true });
+  assert.equal(resolveChartFile('auto'), null, 'a subchart under charts/ is never picked up');
+
+  // An explicit path that does not exist is still an error, not a silent skip.
+  assert.throws(() => resolveChartFile('deploy/chart'), /not found/);
+
+  process.chdir(cwd);
+  fs.rmSync(dir, { recursive: true, force: true });
+  ok('resolveChartFile: auto detects helm/Chart.yaml, none disables, charts/ is ignored');
 }
 
 console.log(`\n${passed} checks passed.`);

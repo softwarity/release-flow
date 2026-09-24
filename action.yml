@@ -30,9 +30,9 @@ inputs:
     required: false
     default: ''
   helm-chart:
-    description: 'Path to a Helm chart directory (or its Chart.yaml) to keep in sync with the release. Empty = disabled'
+    description: 'auto (sync helm/Chart.yaml when it exists) | none | a chart directory or Chart.yaml path'
     required: false
-    default: ''
+    default: 'auto'
   helm-app-version:
     description: 'Also set the chart appVersion to the released version (true/false)'
     required: false
