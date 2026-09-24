@@ -2,6 +2,10 @@
 
 ## NEXT RELEASE
 
+---
+
+## 1.4.0
+
 ### Changed
 
 - **`helm-chart` now defaults to `auto`**: a project whose chart sits at
