@@ -6,6 +6,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { bumpSemver } from './lib/version.mjs';
 import { ensureFile, resolveSection, insertPlaceholder } from './lib/notes.mjs';
+import { setChartVersion, resolveChartFile, syncChart } from './lib/helm.mjs';
 
 let passed = 0;
 const ok = (label) => {
@@ -126,6 +127,75 @@ ok('bumpSemver patch/minor/major + validation');
   assert.equal(r.body, '');
   fs.rmSync(dir, { recursive: true, force: true });
   ok('ensureFile creates a skeleton that resolveSection accepts');
+}
+
+// --- helm: rewrite version + appVersion, never a dependency's ------------
+{
+  const chart = [
+    'apiVersion: v2',
+    'name: my-app',
+    'description: A service',
+    'type: application',
+    'version: 0.0.0',
+    'appVersion: "0.0.0"',
+    'dependencies:',
+    '  - name: redis',
+    '    version: 17.11.3',
+    '    repository: https://charts.bitnami.com/bitnami',
+  ].join('\n');
+
+  const out = setChartVersion(chart, '1.4.0');
+  assert.ok(out.includes('\nversion: 1.4.0'), 'chart version bumped');
+  assert.ok(out.includes('\nappVersion: "1.4.0"'), 'appVersion bumped and quoted');
+  assert.ok(out.includes('    version: 17.11.3'), "dependency version untouched");
+  assert.ok(out.includes('name: my-app'), 'rest of the chart untouched');
+  ok('setChartVersion rewrites the top-level keys only');
+}
+
+// --- helm: appVersion left alone when asked ------------------------------
+{
+  const chart = 'version: 0.0.0\nappVersion: "9.9.9"\n';
+  const out = setChartVersion(chart, '2.0.0', { appVersion: false });
+  assert.equal(out, 'version: 2.0.0\nappVersion: "9.9.9"\n');
+  ok('setChartVersion leaves appVersion alone with appVersion:false');
+}
+
+// --- helm: a chart with no appVersion gets one ---------------------------
+{
+  const out = setChartVersion('name: c\nversion: 0.1.0\n', '1.0.0');
+  assert.equal(out, 'name: c\nversion: 1.0.0\nappVersion: "1.0.0"\n');
+  ok('setChartVersion adds appVersion when the chart has none');
+}
+
+// --- helm: a chart with no version is an error ---------------------------
+{
+  assert.throws(() => setChartVersion('name: c\n', '1.0.0'), /no top-level "version:"/);
+  ok('setChartVersion rejects a Chart.yaml with no version key');
+}
+
+// --- helm: path resolution + dry-run writes nothing ----------------------
+{
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'rna-helm-'));
+  const chartDir = path.join(dir, 'helm');
+  fs.mkdirSync(chartDir);
+  const file = path.join(chartDir, 'Chart.yaml');
+  fs.writeFileSync(file, 'name: c\nversion: 0.0.0\nappVersion: "0.0.0"\n');
+
+  assert.equal(resolveChartFile(''), null, 'empty input disables the feature');
+  assert.equal(resolveChartFile(chartDir), file, 'directory resolves to Chart.yaml');
+  assert.equal(resolveChartFile(file), file, 'an explicit Chart.yaml is kept');
+  assert.throws(() => resolveChartFile(path.join(dir, 'nope')), /not found/);
+
+  assert.deepEqual(syncChart({ chartInput: '', version: '1.0.0' }), []);
+  syncChart({ chartInput: chartDir, version: '1.0.0', dryRun: true });
+  assert.ok(fs.readFileSync(file, 'utf8').includes('version: 0.0.0'), 'dry-run writes nothing');
+
+  const written = syncChart({ chartInput: chartDir, version: '1.0.0' });
+  assert.deepEqual(written, [file]);
+  assert.ok(fs.readFileSync(file, 'utf8').includes('version: 1.0.0'), 'real run writes the file');
+
+  fs.rmSync(dir, { recursive: true, force: true });
+  ok('syncChart resolves the path, honours dry-run and returns the files to commit');
 }
 
 console.log(`\n${passed} checks passed.`);

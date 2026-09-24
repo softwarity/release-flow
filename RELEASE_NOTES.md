@@ -2,6 +2,15 @@
 
 ## NEXT RELEASE
 
+### Added
+
+- **`helm-chart`**: point it at a chart directory (or a `Chart.yaml`) and the
+  release syncs the chart's `version` and `appVersion` to the released version,
+  inside the release commit — so the tag points at a chart deploying that tag's
+  image. Only top-level keys are rewritten, so a `dependencies:` block keeps its
+  pinned versions; a chart without `appVersion` gets one. `helm-app-version:
+  false` versions the chart independently of the app.
+
 ---
 
 ## 1.2.0

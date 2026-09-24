@@ -159,6 +159,8 @@ pom version just needs to stay in sync. `Python` / `Rust` / `PHP` are on the roa
 | `placeholder` | `NEXT RELEASE` | Heading text of the unreleased section (no `## `) |
 | `language` | `auto` | `auto` \| `node` \| `tag` \| `maven_docker` \| `generic` |
 | `version-file` | `.version` | Version file for `language: generic` |
+| `helm-chart` | _(empty)_ | Helm chart directory, or its `Chart.yaml`, to keep in sync — empty disables it |
+| `helm-app-version` | `true` | Also set the chart's `appVersion` to the released version |
 | `maven-image` | `maven:3-eclipse-temurin` | Docker image running `mvn versions:set` for `language: maven_docker` |
 | `tag-prefix` | `v` | Prefix prepended to the version to form the tag |
 | `create-release` | `true` | Create a GitHub Release from the notes |
@@ -182,6 +184,36 @@ pom version just needs to stay in sync. `Python` / `Rust` / `PHP` are on the roa
 | `notes` | Extracted release-notes body |
 | `release-url` | URL of the created GitHub Release |
 | `notes-file-created` | `true` if the notes file was created this run |
+
+## Helm charts
+
+A project that ships a chart next to its code has a second place holding the
+version. Point `helm-chart` at it and the chart is rewritten and **committed with
+the release**, so the tag points at a chart that deploys that tag's image:
+
+```yaml
+- uses: softwarity/release-flow@v1
+  with:
+    bump: ${{ inputs.bump }}
+    helm-chart: helm          # or deploy/chart, or helm/Chart.yaml
+```
+
+Releasing `1.4.0` writes:
+
+```yaml
+version: 1.4.0        # the chart's own version
+appVersion: "1.4.0"   # the image tag it deploys
+```
+
+Only the **top-level** keys are touched, so a `dependencies:` block keeps its own
+pinned versions. A chart with no `appVersion` gets one; set
+`helm-app-version: false` to version the chart independently of the app. The
+chart's `values.yaml` should then leave `image.tag` empty and fall back to
+`.Chart.AppVersion`, so nothing repeats the number:
+
+```yaml
+image: {{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}
+```
 
 ## Permissions &amp; tokens
 

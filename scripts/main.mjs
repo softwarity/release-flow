@@ -12,6 +12,7 @@ import path from 'node:path';
 import * as core from './lib/core.mjs';
 import { applyBump } from './lib/version.mjs';
 import { ensureFile, resolveSection, insertPlaceholder } from './lib/notes.mjs';
+import { syncChart } from './lib/helm.mjs';
 import * as git from './lib/git.mjs';
 import { createRelease } from './lib/release.mjs';
 
@@ -21,6 +22,8 @@ const run = async () => {
   const placeholder = core.getInput('placeholder', 'NEXT RELEASE');
   const language = core.getInput('language', 'auto');
   const versionFile = core.getInput('version-file', '');
+  const helmChart = core.getInput('helm-chart', '');
+  const helmAppVersion = core.getBool('helm-app-version', true);
   const tagPrefix = core.getInput('tag-prefix', 'v');
   const doRelease = core.getBool('create-release', true);
   const draft = core.getBool('release-draft', false);
@@ -42,6 +45,24 @@ const run = async () => {
     applyBump({ language, bump, versionFile, tagPrefix, mavenImage, dryRun })
   );
   const tag = `${tagPrefix}${v.version}`;
+
+  // 1b. Sync the Helm chart, if the project ships one ------------------------
+  // Done here so the chart files land in the release commit, and therefore in
+  // the tag: the chart a tag points at always deploys that tag's image.
+  const helmFiles = helmChart
+    ? await core.group('Sync Helm chart', async () => {
+        const files = syncChart({
+          chartInput: helmChart,
+          version: v.version,
+          appVersion: helmAppVersion,
+          dryRun,
+        });
+        for (const f of files) {
+          core.info(`${f}: version -> ${v.version}${helmAppVersion ? `, appVersion -> "${v.version}"` : ''}`);
+        }
+        return files;
+      })
+    : [];
 
   // 2. Resolve release notes ------------------------------------------------
   const { body, created } = await core.group('Resolve release notes', async () => {
@@ -75,7 +96,7 @@ const run = async () => {
   // 3. Commit + tag (before the fresh placeholder) --------------------------
   await core.group('Commit and tag', async () => {
     git.configUser(userName, userEmail);
-    git.commit(v.version, [...v.files, notesFile]);
+    git.commit(v.version, [...v.files, ...helmFiles, notesFile]);
     git.tag(tag);
     if (doPush) {
       git.push();

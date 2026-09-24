@@ -29,6 +29,14 @@ inputs:
     description: 'Version file for the generic language (defaults to ".version")'
     required: false
     default: ''
+  helm-chart:
+    description: 'Path to a Helm chart directory (or its Chart.yaml) to keep in sync with the release. Empty = disabled'
+    required: false
+    default: ''
+  helm-app-version:
+    description: 'Also set the chart appVersion to the released version (true/false)'
+    required: false
+    default: 'true'
   maven-image:
     description: 'Docker image used to run "mvn versions:set" in maven_docker mode'
     required: false
@@ -110,6 +118,8 @@ runs:
         RNA_PLACEHOLDER: ${{ inputs.placeholder }}
         RNA_LANGUAGE: ${{ inputs.language }}
         RNA_VERSION_FILE: ${{ inputs.version-file }}
+        RNA_HELM_CHART: ${{ inputs.helm-chart }}
+        RNA_HELM_APP_VERSION: ${{ inputs.helm-app-version }}
         RNA_MAVEN_IMAGE: ${{ inputs.maven-image }}
         RNA_TAG_PREFIX: ${{ inputs.tag-prefix }}
         RNA_CREATE_RELEASE: ${{ inputs.create-release }}
