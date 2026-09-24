@@ -2,6 +2,10 @@
 
 ## NEXT RELEASE
 
+---
+
+## 1.3.0
+
 ### Added
 
 - **`helm-chart`**: point it at a chart directory (or a `Chart.yaml`) and the
