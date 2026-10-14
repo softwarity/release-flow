@@ -291,6 +291,30 @@ Without `publish`, the action behaves exactly as before.
   `NODE_AUTH_TOKEN`) on the job or on the action step, as for any other step.
 - In `dry-run`, it is skipped, like the commit and the push.
 
+### By ecosystem
+
+One rule first: **anything that carries the version number must be built inside
+`publish`, not in an earlier step.** The action bumps the version when it runs;
+an artifact built before it embeds the previous number, and you would publish a
+`1.4.0` build under the `v1.5.0` tag. Tests can run before the action — the
+build that gets published runs in `publish`. (`npm publish` of a plain source
+package is fine: it packs the files after the bump, and so does a build in its
+`prepublishOnly` script.)
+
+| Ecosystem | `publish` | Watch out for |
+|-----------|-----------|---------------|
+| npm package | `npm publish` | Credentials: `NODE_AUTH_TOKEN` + `registry-url` on `actions/setup-node`. |
+| Angular library (ng-packagr) | `npm run build && npm publish dist/my-lib` | The action bumps the **root** `package.json` only. If `projects/my-lib/package.json` has its own `version`, `dist/` keeps the old one: sync it first — `npm version "$RELEASE_VERSION" --no-git-tag-version --prefix projects/my-lib && npm run build && npm publish dist/my-lib`. |
+| Maven | `mvn -B deploy` | With `language: maven_docker`, the pom already carries the new version. `mvn` runs on the runner, not in Docker: add `actions/setup-java` (with its `server-id` for the credentials). |
+| Docker image | `docker build -t ghcr.io/org/app:$RELEASE_VERSION . && docker push ghcr.io/org/app:$RELEASE_VERSION` | `docker login` goes in a step **before** the action. Re-tagging an image built earlier (`docker tag` + `docker push`) is only safe if the version is not baked into it (label, version file, build-arg). |
+| Go module | _(none)_ | A Go module is published by the tag itself (proxy.golang.org picks it up): keep the default mode. Use `publish` only for side artifacts, such as an image. |
+| GoReleaser | _(none)_ | GoReleaser needs the tag already on the remote and creates the GitHub Release itself: keep the default mode with a tag-triggered workflow, and set `create-release: false` to avoid a second Release. |
+
+A file that `publish` modifies (like the library's `package.json` above) is not
+part of the release commit, which was made before it ran. To commit a file
+along with the release, change it and `git add` it in a step **before** the
+action: the release commit includes whatever is already staged.
+
 ### The failure that remains
 
 Publishing cannot be undone, so one failure is still possible: the publish

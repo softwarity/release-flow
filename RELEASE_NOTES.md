@@ -2,6 +2,11 @@
 
 ## NEXT RELEASE
 
+### Documentation
+
+- README: per-ecosystem guide for `publish` (npm, Angular library, Maven, Docker,
+  Go, GoReleaser) — build what carries the version inside `publish`, not before.
+
 ---
 
 ## 1.5.0
