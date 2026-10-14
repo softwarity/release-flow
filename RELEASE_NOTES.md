@@ -2,6 +2,10 @@
 
 ## NEXT RELEASE
 
+---
+
+## 1.5.0
+
 ### Added
 
 - **`publish`**: a shell command (e.g. `npm publish`) run after the commit and the
