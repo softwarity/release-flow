@@ -48,6 +48,15 @@ const versionFromTags = (prefix) => {
   return `${maj}.${min}.${pat}`;
 };
 
+// Every tracked pom.xml modified in the working tree — the root one and, in a
+// multi-module build, the modules' that `versions:set` rewrites as well.
+// The root pom always comes first, even if nothing reports it as modified.
+export const modifiedPoms = () => {
+  const out = execFileSync('git', ['ls-files', '-m', '--', ':(glob)**/pom.xml'], { encoding: 'utf8' });
+  const poms = out.split('\n').map((f) => f.trim()).filter((f) => f && f !== 'pom.xml');
+  return ['pom.xml', ...poms];
+};
+
 export const detectLanguage = (lang) => {
   if (lang && lang !== 'auto') return lang;
   if (fs.existsSync('package.json')) return 'node';
@@ -98,8 +107,11 @@ export const applyBump = ({ language, bump, versionFile, tagPrefix, mavenImage, 
         { stdio: 'inherit' }
       );
     }
-    info(`maven_docker: ${previous} -> ${version} (tag-derived; pom.xml synced via ${image})`);
-    return { language: lang, previous, version, files: ['pom.xml'] };
+    // versions:set also rewrites the modules' poms of a multi-module build:
+    // commit them all, or the tag would hold modules still on the old version.
+    const files = dryRun ? ['pom.xml'] : modifiedPoms();
+    info(`maven_docker: ${previous} -> ${version} (tag-derived; ${files.join(', ')} synced via ${image})`);
+    return { language: lang, previous, version, files };
   }
 
   if (lang === 'node') {

@@ -5,7 +5,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { execSync } from 'node:child_process';
-import { bumpSemver } from './lib/version.mjs';
+import { bumpSemver, modifiedPoms } from './lib/version.mjs';
 import { ensureFile, resolveSection, insertPlaceholder } from './lib/notes.mjs';
 import { setChartVersion, resolveChartFile, syncChart, DEFAULT_CHART } from './lib/helm.mjs';
 import { runPublish } from './lib/publish.mjs';
@@ -273,6 +273,29 @@ ok('bumpSemver patch/minor/major + validation');
     fs.rmSync(dir, { recursive: true, force: true });
   }
   ok('branchMoved detects a branch that moved since the checkout');
+}
+
+// --- modifiedPoms: the root pom and every module pom versions:set rewrote ----
+{
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'rna-poms-'));
+  const sh = (cmd) => execSync(cmd, { cwd: dir, stdio: 'ignore' });
+  for (const f of ['pom.xml', 'core/pom.xml', 'web/api/pom.xml', 'untouched/pom.xml', 'README.md']) {
+    fs.mkdirSync(path.join(dir, path.dirname(f)), { recursive: true });
+    fs.writeFileSync(path.join(dir, f), '<version>1.0.0</version>\n');
+  }
+  sh('git init -q && git add -A && git -c user.name=t -c user.email=t@t commit -q -m base');
+  for (const f of ['pom.xml', 'core/pom.xml', 'web/api/pom.xml', 'README.md']) {
+    fs.writeFileSync(path.join(dir, f), '<version>1.1.0</version>\n');
+  }
+  const here = process.cwd();
+  try {
+    process.chdir(dir);
+    assert.deepEqual(modifiedPoms(), ['pom.xml', 'core/pom.xml', 'web/api/pom.xml']);
+  } finally {
+    process.chdir(here);
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
+  ok('modifiedPoms: root pom first, then the modules versions:set rewrote');
 }
 
 console.log(`\n${passed} checks passed.`);

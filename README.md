@@ -141,7 +141,7 @@ in sync. A committed `.version` file is still available via `language: generic`.
 |------------|----------------|------|
 | `node`     | `package.json` `"version"` | `npm version <bump>` |
 | `tag`      | the highest `vX.Y.Z` **git tag** (no file) | semver math |
-| `maven_docker` | git tag → written into `pom.xml` (`mvn versions:set`, run in Docker) | semver math |
+| `maven_docker` | git tag → written into `pom.xml` and the modules' poms (`mvn versions:set`, run in Docker) | semver math |
 | `generic`  | `.version` (or `version-file`) | semver math |
 | `auto` (default) | `package.json`→`node`, `pom.xml`+`Dockerfile`→`maven_docker`, else `tag` | — |
 

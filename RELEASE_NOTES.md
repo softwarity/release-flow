@@ -2,6 +2,13 @@
 
 ## NEXT RELEASE
 
+### Fixed
+
+- **`maven_docker`, multi-module builds**: `versions:set` rewrites the modules'
+  `pom.xml` too, but only the root `pom.xml` was committed — the release commit
+  and the tag held modules still on the previous version. Every `pom.xml` the bump
+  modified is now part of the release commit.
+
 ### Documentation
 
 - README: per-ecosystem guide for `publish` (npm, Angular library, Maven, Docker,
