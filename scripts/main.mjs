@@ -4,6 +4,8 @@
 //   1. bump the version manifest
 //   2. resolve "## <placeholder>" -> "## <version>", extract the body
 //   3. commit (version + notes) and tag           <- tag captures the resolved notes
+//   3b. run the publish command, if any           <- still local: a failure pushes nothing
+//   3c. push the commit and the tag
 //   4. create the GitHub Release from the body
 //   5. open a fresh "## <placeholder>" section     <- separate commit, not in the tag
 import fs from 'node:fs';
@@ -15,6 +17,7 @@ import { ensureFile, resolveSection, insertPlaceholder } from './lib/notes.mjs';
 import { resolveChartFile, syncChart } from './lib/helm.mjs';
 import * as git from './lib/git.mjs';
 import { createRelease } from './lib/release.mjs';
+import { runPublish } from './lib/publish.mjs';
 
 const run = async () => {
   const bump = core.getInput('bump');
@@ -35,6 +38,7 @@ const run = async () => {
   const userName = core.getInput('commit-user-name', 'github-actions[bot]');
   const userEmail = core.getInput('commit-user-email', 'github-actions[bot]@users.noreply.github.com');
   const dryRun = core.getBool('dry-run', false);
+  const publish = core.getInput('publish', '');
 
   if (!['patch', 'minor', 'major'].includes(bump)) {
     throw new Error(`Input "bump" must be patch|minor|major (got "${bump}")`);
@@ -92,7 +96,7 @@ const run = async () => {
   core.setOutput('release-url', '');
 
   if (dryRun) {
-    core.warn('dry-run: skipping commit, tag, push and release.');
+    core.warn(`dry-run: skipping commit, tag,${publish ? ' publish,' : ''} push and release.`);
     core.info(`Would create tag: ${tag}`);
     core.info(`--- notes ---\n${body || '(empty)'}`);
     return;
@@ -103,9 +107,37 @@ const run = async () => {
     git.configUser(userName, userEmail);
     git.commit(v.version, [...v.files, ...helmFiles, notesFile]);
     git.tag(tag);
+  });
+
+  // 3b. Publish — the commit and the tag only exist on the runner so far, so a
+  //     failure here (registry quota, version already taken…) leaves nothing to
+  //     roll back on the remote. Publishing is the one step that cannot be undone:
+  //     it goes before everything that is visible.
+  //     Right before it, check the branch has not moved since the checkout: the
+  //     push would be rejected after the package is out, the one failure left.
+  if (publish) {
+    await core.group('Publish', async () => {
+      if (doPush && git.branchMoved()) {
+        throw new Error('the branch moved since the checkout — nothing was published nor pushed. Re-run the release.');
+      }
+      runPublish({ command: publish, version: v.version, tag });
+    });
+  }
+
+  // 3c. Push ----------------------------------------------------------------
+  await core.group('Push', async () => {
     if (doPush) {
-      git.push();
-      git.pushTag(tag);
+      try {
+        git.push();
+        git.pushTag(tag);
+      } catch (e) {
+        if (!publish) throw e;
+        throw new Error(
+          `${v.version} was published, but the push failed: the release commit and ${tag} exist only on this runner. ` +
+            `Redo that commit by hand (version ${v.version}, notes under "## ${v.version}"), tag it ${tag} and push. ` +
+            `Re-running the workflow would try to publish ${v.version} again.`
+        );
+      }
       if (majorTag) {
         // For repos that ARE a reusable action: move the major pointer (e.g. v1)
         // to this release so `@v1` consumers get it. Done on the release commit,
@@ -115,6 +147,8 @@ const run = async () => {
         git.forcePushTag(major);
         core.info(`Major tag ${major} -> ${tag}`);
       }
+    } else {
+      core.info('push=false: the commit and the tag stay on the runner.');
     }
   });
 

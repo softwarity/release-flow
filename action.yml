@@ -45,6 +45,14 @@ inputs:
     description: 'Prefix prepended to the version to form the git tag (e.g. "v")'
     required: false
     default: 'v'
+  publish:
+    description: >-
+      Shell command that publishes the release (e.g. "npm publish"), run after the
+      commit and the tag are made locally and before anything is pushed. If it
+      fails, the run fails with nothing pushed: no tag, no GitHub Release, no
+      commit on the remote. RELEASE_VERSION and RELEASE_TAG are exported to it.
+    required: false
+    default: ''
   create-release:
     description: 'Create a GitHub Release from the resolved notes (true/false)'
     required: false
@@ -131,5 +139,6 @@ runs:
         RNA_COMMIT_USER_NAME: ${{ inputs.commit-user-name }}
         RNA_COMMIT_USER_EMAIL: ${{ inputs.commit-user-email }}
         RNA_DRY_RUN: ${{ inputs.dry-run }}
+        RNA_PUBLISH: ${{ inputs.publish }}
         GH_TOKEN: ${{ inputs.token }}
       run: node "$GITHUB_ACTION_PATH/scripts/main.mjs"

@@ -1,5 +1,7 @@
 # Drop-in replacement for a manual "bump + prepare notes + commit + tag" job.
 # The repo-specific build/test steps stay; the action owns the release plumbing.
+# Publishing here is done by a separate workflow triggered by the pushed tag.
+# To publish in this same job instead, see release-publish.yml.
 name: Create Tag/Release
 run-name: ${{ github.actor }} release ${{ inputs.bump }} on ${{ github.repository }}
 

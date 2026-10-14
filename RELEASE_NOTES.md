@@ -2,6 +2,19 @@
 
 ## NEXT RELEASE
 
+### Added
+
+- **`publish`**: a shell command (e.g. `npm publish`) run after the commit and the
+  tag are made locally and **before anything is pushed**. A failed publish — a
+  registry quota, a version already taken — now fails the run with nothing to
+  undo: no tag, no GitHub Release, no release commit on the remote. The command
+  gets `RELEASE_VERSION` and `RELEASE_TAG`. Without it, nothing changes: the tag is
+  pushed first, so tag-triggered publish workflows keep working.
+- Right before publishing, the action checks that the branch has not moved since
+  the checkout and stops, with nothing published, if it has: the push would be
+  rejected after the package is out.
+- `examples/release-publish.yml`: a release that publishes to npm in the same job.
+
 ---
 
 ## 1.4.0

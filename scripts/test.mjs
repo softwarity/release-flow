@@ -4,9 +4,12 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
+import { execSync } from 'node:child_process';
 import { bumpSemver } from './lib/version.mjs';
 import { ensureFile, resolveSection, insertPlaceholder } from './lib/notes.mjs';
 import { setChartVersion, resolveChartFile, syncChart, DEFAULT_CHART } from './lib/helm.mjs';
+import { runPublish } from './lib/publish.mjs';
+import { branchMoved } from './lib/git.mjs';
 
 let passed = 0;
 const ok = (label) => {
@@ -229,6 +232,47 @@ ok('bumpSemver patch/minor/major + validation');
   process.chdir(cwd);
   fs.rmSync(dir, { recursive: true, force: true });
   ok('resolveChartFile: auto detects helm/Chart.yaml, none disables, charts/ is ignored');
+}
+
+// --- publish: runs the command, exposes the version, fails loudly -----------
+{
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'rna-publish-'));
+  const out = path.join(dir, 'out');
+  runPublish({ command: `echo "$RELEASE_VERSION $RELEASE_TAG" > '${out}'`, version: '1.2.3', tag: 'v1.2.3' });
+  assert.equal(fs.readFileSync(out, 'utf8'), '1.2.3 v1.2.3\n', 'RELEASE_VERSION and RELEASE_TAG are exported');
+
+  assert.throws(
+    () => runPublish({ command: 'exit 3', version: '1.2.3', tag: 'v1.2.3', stdio: 'ignore' }),
+    /publish failed \(exit 3\) — nothing was pushed/
+  );
+  // bash -e: a failing line in the middle of a script stops it.
+  assert.throws(() => runPublish({ command: `false\ntouch '${out}.late'`, version: '1', tag: 'v1', stdio: 'ignore' }));
+  assert.ok(!fs.existsSync(`${out}.late`), 'lines after a failure do not run');
+
+  fs.rmSync(dir, { recursive: true, force: true });
+  ok('runPublish exports the version, and a failure throws');
+}
+
+// --- branchMoved: compares the remote branch with the release commit's parent --
+{
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'rna-moved-'));
+  const sh = (cmd, cwd) => execSync(cmd, { cwd, stdio: 'ignore' });
+  const id = '-c user.name=t -c user.email=t@t';
+  sh('git init -q --bare -b main origin.git', dir);
+  sh(`git clone -q origin.git a && cd a && git ${id} commit -q --allow-empty -m base && git push -q origin HEAD:main`, dir);
+  sh('git clone -q origin.git b', dir);
+  const here = process.cwd();
+  try {
+    process.chdir(path.join(dir, 'b'));
+    sh(`git ${id} commit -q --allow-empty -m release`);
+    assert.equal(branchMoved(), false, 'remote still at the parent');
+    sh(`cd ../a && git ${id} commit -q --allow-empty -m other && git push -q`);
+    assert.equal(branchMoved(), true, 'remote moved past the parent');
+  } finally {
+    process.chdir(here);
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
+  ok('branchMoved detects a branch that moved since the checkout');
 }
 
 console.log(`\n${passed} checks passed.`);

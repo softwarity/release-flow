@@ -1,0 +1,57 @@
+# Release and publish in ONE job: the action runs `npm publish` between the local
+# tag and the push, so a failed publish (quota, version taken…) leaves nothing to
+# roll back — no tag, no GitHub Release, no commit on the remote.
+# For a publish workflow triggered by the tag instead, see release.yml.
+name: Release
+run-name: ${{ github.actor }} release ${{ inputs.bump }} on ${{ github.repository }}
+
+on:
+  workflow_dispatch:
+    inputs:
+      bump:
+        description: 'Version bump type'
+        required: true
+        default: patch
+        type: choice
+        options:
+          - patch
+          - minor
+          - major
+
+permissions:
+  contents: write   # push the commit and the tag, create the Release
+  packages: write   # npm publish to GitHub Packages
+
+jobs:
+  release:
+    name: Bump, publish, tag and release
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          # No PAT: nothing has to be triggered by the tag.
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+          registry-url: 'https://npm.pkg.github.com'
+
+      - name: Install, build and smoke test
+        run: |
+          npm ci
+          npm run build
+          npm test
+
+      - name: Release
+        uses: softwarity/release-flow@v1
+        with:
+          bump: ${{ inputs.bump }}
+          # Runs after the local commit + tag, before anything is pushed.
+          # Gets RELEASE_VERSION and RELEASE_TAG; runs under bash -e -o pipefail.
+          publish: npm publish
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}

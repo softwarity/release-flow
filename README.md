@@ -8,7 +8,10 @@ A small, dependency-free composite action that turns a single manual choice
 2. **Resolves the release notes**: renames the unreleased
    `## NEXT RELEASE` section to the new version number and extracts its body.
 3. **Commits and tags** that state — so the tag captures the finished notes.
-4. **Publishes a GitHub Release** from the extracted body.
+4. **Pushes** the commit and the tag, then **publishes a GitHub Release** from
+   the extracted body. With the optional [`publish`](#publishing-before-pushing)
+   input, your publish command (e.g. `npm publish`) runs first, between the local
+   tag and the push: if it fails, nothing has been pushed.
 5. **Re-opens a fresh `## NEXT RELEASE` section** for the next cycle — so
    contributors only ever *fill in* a section, never add one.
 
@@ -163,6 +166,7 @@ pom version just needs to stay in sync. `Python` / `Rust` / `PHP` are on the roa
 | `helm-app-version` | `true` | Also set the chart's `appVersion` to the released version |
 | `maven-image` | `maven:3-eclipse-temurin` | Docker image running `mvn versions:set` for `language: maven_docker` |
 | `tag-prefix` | `v` | Prefix prepended to the version to form the tag |
+| `publish` | _(empty)_ | Command that publishes the release (e.g. `npm publish`), run **before anything is pushed** — see [Publishing before pushing](#publishing-before-pushing) |
 | `create-release` | `true` | Create a GitHub Release from the notes |
 | `release-draft` | `false` | Create the Release as a draft |
 | `release-prerelease` | `false` | Mark the Release as a prerelease |
@@ -224,6 +228,81 @@ chart's `values.yaml` should then leave `image.tag` empty and fall back to
 image: {{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}
 ```
 
+## Publishing before pushing
+
+By default the action pushes the commit and the tag and creates the GitHub
+Release; publishing the package is up to you, afterwards. When that publish
+fails (registry quota, a version already taken, an expired token), the release
+commit, the tag and the Release are already public and must be rolled back by
+hand.
+
+The `publish` input moves the publish command **inside** the action, between the
+local tag and the push:
+
+| Without `publish` (default) | With `publish` |
+|-----------------------------|----------------|
+| 1. commit + tag (local) | 1. commit + tag (local) |
+| 2. push commit + tag | 2. **run `publish`** |
+| 3. GitHub Release | 3. push commit + tag |
+| | 4. GitHub Release |
+
+If the command fails, the run fails and nothing has left the runner: no tag, no
+Release, no commit on the remote. Fix the cause and run the release again.
+
+### When to use it
+
+Use `publish` when the package is published **in the same job** as the release,
+by a step that would otherwise come after the action:
+
+```yaml
+- uses: actions/setup-node@v4
+  with: { node-version: '20', registry-url: 'https://npm.pkg.github.com' }
+- run: npm ci && npm run build && npm test
+- uses: softwarity/release-flow@v1
+  with:
+    bump: ${{ inputs.bump }}
+    publish: npm publish
+  env:
+    NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+```
+
+See [`examples/release-publish.yml`](examples/release-publish.yml) for the whole
+workflow. Build and test **before** the action: `publish` should only push out
+an artifact that is already built.
+
+### When not to use it
+
+Leave `publish` empty when the package is published by **another workflow
+triggered by the tag** (`on: push: tags`, the [Quick start](#quick-start) setup
+with a PAT). That workflow needs the tag pushed to start at all, so it cannot
+run before the push — and passing `publish` there as well would publish twice.
+
+Without `publish`, the action behaves exactly as before.
+
+### What the command gets
+
+- It runs under `bash -e -o pipefail` from the repository root: a multi-line
+  script stops at its first failing line.
+- `RELEASE_VERSION` (`1.4.0`) and `RELEASE_TAG` (`v1.4.0`) are set, e.g. for
+  `docker push my/image:$RELEASE_VERSION`.
+- The files are already bumped: `package.json`, the chart, the notes carry the
+  new version.
+- It inherits the job's environment: set the registry credentials (e.g.
+  `NODE_AUTH_TOKEN`) on the job or on the action step, as for any other step.
+- In `dry-run`, it is skipped, like the commit and the push.
+
+### The failure that remains
+
+Publishing cannot be undone, so one failure is still possible: the publish
+succeeds, then the push is rejected because someone pushed to the branch during
+the release. To make it rare, the action checks right before publishing that the
+branch has not moved since the checkout, and stops — with nothing published —
+if it has. Only a push landing during the publish itself slips through. The run
+then fails with an explicit message: the package is out, but the release commit
+and the tag existed only on the runner. Redo that commit by hand (version bumped,
+notes under `## X.Y.Z`), tag it and push; re-running the workflow would try to
+publish the same version again.
+
 ## Permissions &amp; tokens
 
 - The job needs `permissions: contents: write` (push commits/tags, create the Release).
@@ -231,7 +310,11 @@ image: {{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppV
 - The **git push** uses whatever credentials `actions/checkout` set up. If a
   pushed tag must trigger another workflow (e.g. an NPM publish on `push: tags`),
   check out with a **PAT** — pushes made with `GITHUB_TOKEN` do not trigger
-  workflows.
+  workflows. With [`publish`](#publishing-before-pushing) nothing needs to be
+  triggered, so `GITHUB_TOKEN` is enough (unless branch protection requires
+  otherwise).
+- `publish` uses the registry credentials of the job, not `token`. Publishing to
+  GitHub Packages also needs `permissions: packages: write`.
 
 ## One commit per release (and the tag)
 
