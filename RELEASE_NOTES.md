@@ -2,6 +2,10 @@
 
 ## NEXT RELEASE
 
+---
+
+## 1.5.1
+
 ### Fixed
 
 - **`maven_docker`, multi-module builds**: `versions:set` rewrites the modules'
